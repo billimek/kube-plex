@@ -7,8 +7,15 @@ metadata:
     chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+  {{- if .Values.deploymentAnnotations }}
+  annotations:
+    {{- range $key, $value := .Values.deploymentAnnotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
 spec:
   replicas: 1
+  revisionHistoryLimit: 3
   strategy:
     type: Recreate
   selector:
@@ -143,6 +150,10 @@ spec:
         {{- if .Values.persistence.transcode.subPath }}
           subPath: {{ .Values.persistence.transcode.subPath }}
         {{ end }}
+        {{-  range .Values.persistence.extraData }}
+        - mountPath: "/data-{{ .name }}"
+          name: "extradata-{{ .name }}"
+        {{- end }}
         - name: shared
           mountPath: /shared
         resources:
@@ -176,6 +187,15 @@ spec:
 {{- end }}
 {{- else }}
         emptyDir: {}
+{{- end }}
+{{-  range .Values.persistence.extraData }}
+      - name: "extradata-{{ .name }}"
+        persistentVolumeClaim:
+{{- if .claimName }}
+          claimName: "{{ .claimName }}"
+{{- else }}
+          claimName: "extradata-{{ .name }}"
+{{- end }}
 {{- end }}
       - name: shared
         emptyDir: {}
